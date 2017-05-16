@@ -3,22 +3,23 @@ import praw
 import pdb
 import re
 import os
+import copy
 
 from bs4 import BeautifulSoup
 
 reddit = praw.Reddit('bot1')
 # subreddit = reddit.subreddit('learnpython')
-pattern = 'a-roo|aroo|eroo|e-roo'
+pattern = 'a-roo|aroo|eroo|e-roo|yroo'
 
 def getNextLink(comment):
     soup = BeautifulSoup(comment.body_html, 'html.parser')
     for link in soup.find_all('a'):
-        if 'https://www.reddit.com' in link.get('href'):
+        if 'https://www.reddit.com' in link.get('href') and re.search(pattern, link.contents[0], re.IGNORECASE):
             return link.get('href')
     return None
 
 def hasLink(comment):
-    soup = BeautifulSoup(comment.body_html, 'html.parse')
+    soup = BeautifulSoup(comment.body_html, 'html.parser')
     return len(soup.find_all('a')) > 0
 
 if not os.path.isfile('posts_replied_to.txt'):
@@ -39,31 +40,54 @@ for comment in start_submission.comments.list():
     if comment.id not in comment_ids:
         comment_ids.append(comment.id)
     if re.search(pattern, comment.body, re.IGNORECASE) and hasLink(comment):
-        print('IN REGEX MATCHING 1')
         next_link = getNextLink(comment)
+        next_id = next_link.split('comments/')[1].split('/')[-2]
         final_comment = comment.body
         final_url = comment.permalink()
         chain_length += 1
         break
     else:
-        next_link = "Test"
+        next_link = None
 
 try:
     while 'https://www.reddit.com' in next_link:
-        next_submission = reddit.submission(url=next_link)
-        next_submission.comments.replace_more(limit=None)
-        next_comments = next_submission.comments.list()
-        for comment in next_comments:
-            if comment.id not in comment_ids:
-                comment_ids.append(comment.id)
+        print(next_id)
+        print(next_link)
+
+        next_comment = reddit.comment(id=next_id)
+
+        while not next_comment.is_root:
+            next_comment = next_comment.parent()
+
+        next_comment.refresh()
+        next_comments = next_comment.replies[:]
+
+        # next_permalink = copy.deepcopy(next_comment).permalink()
+
+        while next_comments:
+            comment = next_comments.pop(0)
+            if isinstance(comment, praw.models.MoreComments):
+                comment = comment.comments()
+                next_comments.extend(comment) # This is potentially bad...changing data type of comment?
+                continue
+            next_comments.extend(comment.replies)
 
             if re.search(pattern, comment.body, re.IGNORECASE) and hasLink(comment):
-                print('IN REGEX MATCHING 2')
                 next_link = getNextLink(comment)
+                if next_link is None:
+                    continue
+
+                if '/?' in next_link:
+                    next_id = next_link.split('comments/')[1].split('?')[0].split('/')[-2]
+                elif '?' in next_link:
+                    next_id = next_link.split('comments/')[1].split('?')[0].split('/')[-1]
+                else:
+                    next_id = next_link.split('comments/')[1].split('/')[-2]
                 final_comment = comment.body
                 final_url = comment.permalink()
                 chain_length += 1
                 break
+
 except TypeError:
     print("Caught type error.")
     pass
