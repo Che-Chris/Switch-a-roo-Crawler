@@ -28,6 +28,7 @@ start_link = input("Enter a link to start.\n")
 max_length = int(input("How many links do you want to find?\n"))
 
 if start_link.strip() == '':
+    print('Using default link.')
     start_link = DEFAULT_LINK
 
 start_submission = reddit.submission(url=start_link)
