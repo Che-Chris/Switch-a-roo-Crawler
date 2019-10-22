@@ -27,7 +27,7 @@ onboard==1.2.0
 packaging==16.8
 padme==1.1.1
 pexpect==4.2.1
-Pillow==4.1.1
+Pillow==6.2.0
 pip-review==0.5.3
 plainbox==0.34.0
 ptyprocess==0.5.1
